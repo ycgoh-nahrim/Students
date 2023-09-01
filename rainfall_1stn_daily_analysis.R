@@ -2,7 +2,6 @@
 library(tidyverse)
 library(lubridate)
 library(scales)
-library(plotly)
 
 library(openxlsx)
 library(viridis)
@@ -16,19 +15,13 @@ options(stringsAsFactors = FALSE)
 #INPUT
 ###############################################################################
 
+##rainfall station data 
+# daily rain data
 
-###########################
-##OPTIONS (rainfall station data or from database) #############
-# average daily rain data
-
-
-#from database
-rain_db <- read.csv(file = "J:/Backup_main/Main/20200604_SF_RF_Msia/Data/RF_1d_PM_20200720_clean1.csv",
+#from csv
+rain_db <- read.csv(file = "F:/Documents/demo_rainfall/RF_1d_2719001.csv",
                     header = TRUE, sep=",")
 str(rain_db)
-
-
-
 
 
 ###########################
@@ -66,14 +59,12 @@ setwd(filename2)
 ###########################
 
 ## select data
-raindata_sel <- rain_db %>%
-  filter(Stn_no == stn_no)
+raindata_sel <- rain_db 
 
 str(raindata_sel)
 
 
 #if date is not in date format
-#raindata_sel$Date <- as.Date(raindata_sel$Date, format = "%d/%m/%Y")
 raindata_sel$Date <- as.Date(raindata_sel$Date, format = "%Y-%m-%d")
 #format column from character to numeric
 raindata_sel$Depth <- as.numeric(as.character(raindata_sel$Depth))
@@ -102,8 +93,6 @@ year_interval <- 5
 
 # CHECK RECORDS 
 
-#dataset: raw
-
 # remove years with missing data
 
 ## count non-missing data
@@ -120,12 +109,9 @@ raindata_cnt_mth$cnt <- as.numeric(as.character(raindata_cnt_mth$cnt))
 
 # DATA COUNT HEATMAP
 
-#dataset: raw
-
 rain_cnt_matrix <- raindata_cnt_mth %>%
   ggplot(aes(x = Year, y = Month)) +
-  geom_tile(aes(fill = cnt, text = paste0('Month: ', Month,
-                                          '<br>Record count: <b>', cnt, '</b>'))) +
+  geom_tile(aes(fill = cnt)) +
   scale_fill_distiller(palette = "YlGnBu", direction = 1, 
                        limits = c(1, 31), #set legend values?
                        name = "Record by month") +
@@ -133,12 +119,10 @@ rain_cnt_matrix <- raindata_cnt_mth %>%
   scale_y_continuous(#name = "Month",
                      breaks = seq(1, 12, by = 1), 
                      minor_breaks = NULL, 
-                     expand = c(0, 0),
                      trans = "reverse",
                      labels = month.abb) +
   scale_x_continuous(name = "Year",
                      breaks = seq(year_min, year_max, by = year_interval), 
-                     expand = c(0, 0),
                      minor_breaks = NULL) + 
   theme(text=element_text(family = "Roboto", size = 8,
                           color = "grey20"),
@@ -146,25 +130,13 @@ rain_cnt_matrix <- raindata_cnt_mth %>%
         panel.grid.major.x = element_blank(),
         panel.grid.major.y = element_blank(),
         legend.position = "bottom") +
-  labs(title = paste0(stn_no, " ", stn_name, ": Data Availability")) +
-  guides(fill = guide_colorbar(label.position = "bottom", title.hjust = 0.9, 
-                               barwidth = unit(10, "lines"), barheight = unit(0.5, "lines")))
+  labs(title = paste0(stn_no, " ", stn_name, ": Data Availability")) 
 
 rain_cnt_matrix
 
 #print last plot to file
 ggsave(paste0(filename2, "_cnt_heatmap_raw.jpg"), dpi = 300, 
        width = 30, height = 15, units = "cm")
-
-ggplotly(rain_cnt_matrix, tooltip = "text",
-         height = 800,
-         width = 1200
-         )
-
-
-###########
-# remove stations with insufficient months & years of complete data
-
 
 
 ###########################
@@ -175,14 +147,14 @@ ggplotly(rain_cnt_matrix, tooltip = "text",
 #summarise data
 
 # calculate the total rain (mm) for each year
-Rain_sum_yr <- raindata_sel2 %>%
+Rain_sum_yr <- raindata_sel %>%
   select(Year, Depth) %>%
   group_by(Year) %>%
   summarise(Depth_yr = sum(Depth, na.rm = T)) 
 
 
 # sum all months
-Rain_sum_mth <- raindata_sel2 %>%
+Rain_sum_mth <- raindata_sel %>%
   select(Year, Month, Depth) %>%
   group_by(Year, Month) %>%
   summarise(Depth_mth = sum(Depth, na.rm = T))
@@ -192,23 +164,16 @@ Rain_sum_mth <- raindata_sel2 %>%
 
 # DAILY RAINFALL
 
-
-
 # plot daily data
-rain_daily_plot <- raindata_sel2 %>% 
-  ggplot(aes(x = Date, y = Depth,
-             text = paste0("Station no: ", Stn_no,
-                           "<br> Depth:", Depth,  
-                           " mm <br> Date: ", Date))) +
+rain_daily_plot <- raindata_sel %>% 
+  ggplot(aes(x = Date, y = Depth)) +
   geom_point(alpha = 0.5, size = 1, color = "steelblue") +
   theme_bw(base_size = 10) +
   scale_x_date(name= "Year", date_labels = "%Y",
                date_breaks = paste0(year_interval, " year"),
-               #breaks = seq(year_min, year_max, by = year_interval), 
                minor_breaks = NULL) + #x axis format
   scale_y_continuous(name= paste("Daily rainfall (mm)"),
-                     #breaks = seq(0, 3500, by = 500), 
-                     #limits = c(0, 400),
+                     breaks = seq(0, 150, by = 20), 
                      minor_breaks = NULL) + #y axis format
   theme(text = element_text(color="grey20"),
         #legend.position = "none",
@@ -222,31 +187,21 @@ rain_daily_plot
 ggsave(paste0(filename2, "_check_daily.jpg"), dpi = 300,
        width = 30, height = 20, units = "cm")
 
-#plotly
-ggplotly(rain_daily_plot, tooltip = "text",
-         width = 1000, height = 500,
-         dynamicTicks = TRUE) %>% 
-  rangeslider()
-
 
 ###########################
 
 # ANNUAL RAINFAll
 
-
 rain_annual_ly <- Rain_sum_yr %>% 
-  ggplot(aes(x = Year, y = Depth_yr, text = paste0('Year: ', Year, '<br>Total rainfall: ',
-                                                   Depth_yr, ' mm'))) +
+  ggplot(aes(x = Year, y = Depth_yr)) +
   geom_bar(stat = "identity", fill = "steelblue") +
-  #geom_line(aes(text = paste0('Year: ', Year, '<br>Total rainfall: ',
-  #                            Depth_yr, ' mm'))) +
   theme_bw(base_size = 10) +
   scale_x_continuous(name= "Year", 
                      #breaks = seq(0, 5000, by = 1000), 
                      minor_breaks = NULL) + #x axis format
   scale_y_continuous(name= paste("Annual rainfall (mm)"),
-                     #breaks = seq(0, 3500, by = 500), 
-                     limits = c(0, NA),
+                     breaks = seq(0, 3500, by = 500), 
+                     limits = c(0, 3000),
                      minor_breaks = NULL) + #y axis format
   scale_colour_discrete(labels = function(x) str_wrap(x, width = 15)) +
   theme(text=element_text(color="grey20"),
@@ -258,20 +213,13 @@ rain_annual_ly <- Rain_sum_yr %>%
 rain_annual_ly
 
 #print last plot to file
-ggsave(paste0(filename2, "_check_annual.jpg"), dpi = 300, 
+ggsave(paste0(filename2, "_annual_total.jpg"), dpi = 300, 
        width = 30, height = 20, units = "cm")
-
-#plotly
-ggplotly(rain_annual_ly, tooltip = "text",
-         width = 1200, height = 800)
-
 
 
 ###########################
 
 # AVERAGE MONTHLY RAINFALL
-
-
 
 #summarize
 rain_mth_avg <- Rain_sum_mth %>% 
@@ -279,14 +227,11 @@ rain_mth_avg <- Rain_sum_mth %>%
   summarise(avg_depth = mean(Depth_mth))
 
 
-
 #plot
 
 rain_mth_avg_plot <- rain_mth_avg %>%
   ggplot(aes(x = Month, y = avg_depth)) +
-  geom_bar(stat = "identity", fill = "skyblue2", alpha = 0.8,
-           aes(text = paste0("Average monthly rainfall for <b>", month.name[rain_mth_avg$Month], "</b> is <b>", 
-                             sprintf("%0.1f", rain_mth_avg$avg_depth), " mm</b>"))) +
+  geom_bar(stat = "identity", fill = "skyblue2", alpha = 0.8) +
   theme_bw(base_size = 10) +
   scale_x_continuous(name = "Month",
                      breaks = seq(1, 12, by = 1), 
@@ -308,15 +253,9 @@ ggsave(paste0(filename2, "_mth_avg.jpg"), dpi = 300,
        width = 300, height = 210, units = "mm")
 
 
-ggplotly(rain_mth_avg_plot, tooltip = "text",
-         width = 900, height = 500)
-
-
-
-
 ###########################
-#boxplot label function
-
+#boxplot label function from USGS
+#modified with mean 
 
 ggplot_box_legend <- function(family = font_family){
   
@@ -467,21 +406,14 @@ legend_plot <- ggplot_box_legend()
 
 # MONTHLY RAINFALL VARIABILITY
 
-
-#boxplot
-
 #plot boxplot
 Rain_sum_mth_box <- Rain_sum_mth %>%
-  ggplot(aes(x = Month, y = Depth_mth, group = Month
-             #alpha = 0.8
-             #color = as.factor(month)
-  )) +
+  ggplot(aes(x = Month, y = Depth_mth, group = Month)) +
   geom_boxplot(outlier.colour="red", 
                outlier.shape=20,
                outlier.size=3,
                #fill = "white", 
                color = "steelblue3") +
-  #geom_point(size = 0.9, alpha = 0.5, color = "grey80") +
   theme_bw(base_size = 10) +
   scale_x_continuous(name = "Month",
                      breaks = seq(1, 12, by = 1), 
@@ -496,9 +428,7 @@ Rain_sum_mth_box <- Rain_sum_mth %>%
   stat_boxplot(geom ='errorbar', show.legend = F, width = 0.5,
                color = "grey58") +
   scale_shape_manual(name =NULL, values=c("Mean"=4)) +
-  #scale_color_brewer(palette="Set3") +
   theme(text=element_text(
-    #family=font_family, 
     color="grey20"),
     panel.grid.major.x = element_blank()) +
   labs(title = "Monthly rainfall variability")
@@ -515,8 +445,4 @@ rain_mth_box
 ggsave(paste0(filename2, "_rain_boxplot_mth.jpg"), 
        dpi = 300, width = 297, height = 210, units = "mm",
        rain_mth_box)
-
-
-ggplotly(Rain_sum_mth_box, #tooltip = "text",
-         width = 1000, height = 500) 
 
