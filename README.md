@@ -1,6 +1,7 @@
 # Students
 <p>For interns etc</p>
 <p>Basic daily rainfall data visualization for a single rainfall station.</p>
+<p>Data credit: <a href = "https://www.water.gov.my/">JPS/DID</a></p>
 <h3>Data availability</h3>
 <img src="https://github.com/ycgoh-nahrim/Students/blob/main/RF2719001_daily_cnt_heatmap_raw.jpg" alt="Heatmap of data availability for each month, each year">
 <h3>Daily rainfall</h3>
